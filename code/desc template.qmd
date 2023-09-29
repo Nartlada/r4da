@@ -1,0 +1,195 @@
+---
+title: "Descriptive statistics using gtsummary"
+format:
+  html:
+    toc: true
+editor: visual
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(
+  message = FALSE,
+  warning = FALSE,
+  cache = FALSE
+)
+```
+
+### Step 0 - Set up
+
+```{r packages}
+# Load packages
+pacman::p_load(
+  rio,              # import data
+  here,             # easy file referencing
+  tidyverse,        # set of core packages that you’re likely to use in everyday data analyses
+  labelled,         # variable label
+  gtsummary,        # creates presentation-ready tables summarizing data
+  gt                # customize gtsummary output
+)
+
+# Set theme for gtsummary output
+theme_gtsummary_compact()
+```
+
+### Step 1 - Import and explore data
+
+```{r importdata}
+# Import data
+df <- 
+
+# Explore
+
+```
+
+### Step 2 - Prepare data for required output
+
+```{r preparedata}
+# Data management: join, filter, mutate, select, set labels
+df1 <- 
+```
+
+### Step 3 - Produce output using tbl_summary()
+
+`tbl_summary` function calculates descriptive statistics for continuous, categorical, and dichotomous variables. See a detailed `tbl_summary()` vignette at <http://www.danieldsjoberg.com/gtsummary/articles/tbl_summary.html>
+
+```{r tbl_summary}
+df1 %>% 
+```
+
+-   Four types of summaries: `continuous`, `continuous2`, `categorical`, and `dichotomous`
+
+-   Statistics are `median (IQR)` for continuous, `n (%)` for categorical/dichotomous
+
+-   Variables coded `0/1`, `TRUE/FALSE`, `Yes/No` treated as dichotomous
+
+-   Lists `NA` values under "Unknown"
+
+-   Label attributes are printed automatically
+
+### Step 4 - Produce output using tbl_continuous()
+
+`tbl_continuous` function summarizes a continuous variable by one or more categorical variables.
+
+```{r tbl_continuous}
+df1 %>%
+```
+
+### Step 5 - Customize output
+
+-   `by`: specifies a column variable for cross-tabulation
+
+-   `include`: variables to include in the summary table
+
+-   `type`: specifies the summary type
+
+-   `statistic`: customize the reported statistics
+
+-   `digits`: number of digits the summary statistics will be rounded to
+
+-   `label`: change or customize variable labels
+
+-   `missing`: whether to display a row with the number of missing observations
+
+```{r customize}
+t_custom <- df1 %>%
+
+t_custom
+```
+
+![](SummaryTables.png)
+
+### Step 6 - Customize output using add-on functions
+
+#### 6.1 `add_*()` add additional column of statistics or information, e.g. p-values, q-values, overall statistics, treatment differences, N obs., and more
+
+-   `add_stat_label()`: adds a description of the reported statistic
+
+-   `add_n()`: adds a column with the sample size
+
+-   `add_overall()`: adds a column of overall statistics
+
+-   `add_p()`: adds a column of p-values
+
+-   `add_q()`: adds a column of p-values adjusted for multiple comparisons through a call to `p.adjust()`
+
+-   `add_difference()`: mean and rate differences between two groups. Can also be adjusted differences
+
+```{r customize_add}
+t_custom_add <- t_custom %>%
+
+t_custom_add
+```
+
+#### 6.2 `bold_*()/italicize_*()` style labels, variable levels, significant p-values
+
+-   `bold_labels()`: bold the variable labels
+
+-   `italicize_labels()`: italicize the variable labels
+
+-   `italicize_levels()`: italicize the variable levels
+
+-   `bold_p()`: bold p-values according a specified threshold
+
+```{r customize_bold}
+t_custom_bold <- t_custom_add %>%
+
+t_custom_bold
+```
+
+#### 6.3 `modify_*()` modify table caption, column headers, spanning headers, and footnotes
+
+```{r customize_modify}
+t_custom_mod <- t_custom_bold %>%
+
+t_custom_mod
+```
+
+-   Use `show_header_names()` to see the internal header names available for use in `modify_header()`
+
+### Step 7 - Combine tables with tbl_merge()/tbl_stack()
+
+#### 7.1 `tbl_merge()` merges two or more gtsummary objects side-by-side
+
+```{r merge}
+t1a <- df1 %>%
+
+t1b <- df1 %>%
+
+t1c <- df1 %>%
+
+t1d <- df1 %>%
+
+t1e <- df1 %>%
+
+```
+
+#### 7.2 `tbl_stack()` stacks two or more gtsummary objects
+
+```{r stack}
+t2a <- df1 %>%
+
+t2b <- df1 %>%
+
+```
+
+### Step 8 - tbl_strata() for stratified tables
+
+```{r strata}
+df1 %>%
+
+```
+
+### Step 9 - Customize using gt()
+
+`as_gt()` converts a gtsummary object to a `"gt_tbl"` object. A user can use this function if they wish to add customized formatting available via the [gt package](https://gt.rstudio.com/index.html).
+
+![](gt_parts_of_a_table.svg)
+
+```{r gt}
+t_custom_mod %>% 
+
+```
+
+### Reference
+
+See gtsummary documentation at <http://www.danieldsjoberg.com/gtsummary/reference/index.html>
