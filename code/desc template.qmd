@@ -96,7 +96,7 @@ t_custom <- df1 %>%
 t_custom
 ```
 
-![](SummaryTables.png)
+![](./images/SummaryTables.png)
 
 ### Step 6 - Customize output using add-on functions
 
