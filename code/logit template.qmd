@@ -1,0 +1,170 @@
+---
+title: "Logistic regression"
+format:
+  html:
+    toc: true
+editor: visual
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(
+  message = FALSE,
+  warning = FALSE,
+  cache = FALSE
+)
+```
+
+### Step 0 - Set up
+
+```{r packages}
+# Load packages
+pacman::p_load(
+  rio,              # import data
+  here,             # easy file referencing
+  tidyverse,        # set of core packages that you’re likely to use in everyday data analyses
+  janitor,          # simplify variable names
+  labelled,         # variable label
+  lmtest,
+  gtsummary,        # creates presentation-ready tables summarizing data
+  gt                # customize gtsummary output
+)
+
+# Set theme for gtsummary output
+theme_gtsummary_compact()
+```
+
+### Step 1 - Import and explore data
+
+```{r importdata}
+# Import data
+df <- import(here('data', 'heart.csv'))
+
+# Explore
+skimr::skim(df)
+```
+
+### Step 2 - Prepare data for required output
+
+```{r preparedata}
+# Data management: join, filter, mutate, select, set labels
+df1 <- df %>%
+  clean_names() %>%
+  drop_na() %>%
+  select(gender = male, 
+         age, 
+         smoke = current_smoker, 
+         cigs = cigs_per_day, 
+         bpmeds = bp_meds,
+         stroke = prevalent_stroke,
+         hyper = prevalent_hyp,
+         diabetes,
+         chol = tot_chol,
+         sysbp = sys_bp,
+         diabp = dia_bp,
+         bmi,
+         hr = heart_rate,
+         glucose,
+         chd = ten_year_chd) %>% 
+  set_variable_labels(
+    gender = 'Gender',
+    age = 'Age',
+    smoke = 'Current smoker',
+    cigs = 'Cigarettes/day',
+    bpmeds = 'Blood pressure medication',
+    stroke = 'History of stroke',
+    hyper = 'Hypertensive',
+    diabetes = 'Diabetes',
+    chol = 'Cholesterol ',
+    sysbp = 'Systolic',
+    diabp = 'Diastolic',
+    bmi = 'BMI',
+    hr = 'Heart rate',
+    glucose = 'Glucose',
+    chd = '10 year risk of CHD'
+  ) %>% 
+mutate(
+  across(c(gender, smoke, bpmeds:diabetes), as.factor)
+)
+```
+
+### Linear regression vs logistic regression
+
+::: columns
+::: column
+```{r}
+# Linear
+df1 %>% 
+  ggplot(aes(sysbp, diabp)) +
+  geom_point(alpha = 0.1) +
+  geom_smooth(
+    method = lm,
+    se = FALSE)
+```
+
+![](linear.png)
+:::
+
+::: column
+```{r}
+# Logistic
+df1 %>% 
+  ggplot(aes(sysbp, chd)) +
+  geom_point(alpha = 0.1) +
+  geom_smooth(
+    method = "glm", se = FALSE,
+    method.args = list(family = "binomial"))
+```
+
+![](sigmoid.gif)\
+<br> ![](logit.gif)
+:::
+:::
+
+#### Basic Logistic Regression Commands
+
+``` r
+object <- glm(formula = dv ~ iv1 + iv2 + iv3, family = "binomial", data = df)
+summary(object)  # results in logit coefficients 
+exp(cbind(OR = coef(object), confint(object)))  # results in ORs and their CIs
+```
+
+-   `formula =` The model is provided to [`glm()`](https://rdrr.io/r/stats/glm.html) as an equation, with the outcome on the left and explanatory variables on the right of a tilde `~`.
+
+-   `family =` This determines the type of model to run. For logistic regression, use `family = "binomial"`, for poisson use `family = "poisson"`. Other examples are in the table below.
+
+-   `data =` Specify your data frame
+
+### Step 3 - Univariate
+
+```{r uni}
+uni_pregnant <- glm(p_diabetes ~ pregnant, 'binomial', df1)
+summary(uni_pregnant)
+exp(cbind(OR = coef(uni_pregnant), confint(uni_pregnant)))
+broom::tidy(uni_pregnant, exponentiate = TRUE, conf.int = TRUE)
+
+uni_glucose  <- glm(p_diabetes ~ glucose, family = 'binomial', data = df1)
+summary(uni_glucose)
+exp(cbind(OR = coef(uni_glucose), confint(uni_glucose)))
+broom::tidy(uni_glucose, exponentiate = TRUE, conf.int = TRUE)
+
+summary(glm(p_diabetes ~ glucose, family = 'binomial', data = df1))
+summary(glm(p_diabetes ~ pressure, family = 'binomial', data = df1))
+summary(glm(p_diabetes ~ triceps, family = 'binomial', data = df1))
+summary(glm(p_diabetes ~ insulin, family = 'binomial', data = df1))
+summary(glm(p_diabetes ~ mass, family = 'binomial', data = df1))
+summary(glm(p_diabetes ~ pedigree, family = 'binomial', data = df1))
+summary(glm(p_diabetes ~ age, family = 'binomial', data = df1))
+summary(glm(p_diabetes ~ pedigree, family = 'binomial', data = df1))
+
+
+```
+
+### Step 4 - Multivariate
+
+Variables inclusion and selection
+
+-   A major problem when building a logistic model is to select which variables to include.
+
+-   We can start a regression using either a full (saturated) model, or a null (empty) model, which starts only with the intercept term.
+
+-   
