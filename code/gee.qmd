@@ -1,0 +1,238 @@
+---
+title: "Logistic regression via generalized estimating equations (GEE)"
+format:
+  html:
+    toc: true
+editor: visual
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(
+  message = FALSE,
+  warning = FALSE,
+  cache = FALSE
+)
+```
+
+### Step 0 - Set up
+
+```{r packages}
+# Load packages
+pacman::p_load(
+  rio,              # import data
+  here,             # easy file referencing
+  tidyverse,        # set of core packages used in everyday data analyses
+  janitor,          # simplify variable names
+  labelled,         # variable label
+  geepack,          # GEE
+  aod,              # Wald test for model coefficients
+  gtsummary,        # creates presentation-ready tables summarizing data
+  gt                # customize gtsummary output
+)
+
+# Set theme for gtsummary output
+theme_gtsummary_compact()
+```
+
+### Step 1 - Import and explore data
+
+```{r importdata}
+# Import data
+df <- readRDS(here('data', 'tb.rds'))
+
+# Explore
+skimr::skim(df)
+```
+
+### Step 2 - Prepare data for required output
+
+```{r preparedata}
+# Data management: join, filter, mutate, select, set labels
+df1 <- df %>% 
+  mutate(outcome01 = ifelse(outcome == 'Positive', 1, 0))
+```
+
+### Step 3 - Univariate
+
+```{r uni}
+t_uni <- df1 %>% 
+  tbl_uvregression(
+      method = my_geeglm,
+      y = outcome01,
+      include = -hcode,
+      method.args = list(
+        family = binomial,
+        id = hcode,
+        corstr = "independence"
+      ),
+      exponentiate = TRUE
+    ) %>%
+  add_global_p() %>%
+  bold_p(0.25)
+t_uni
+```
+
+### Step 4 - Multivariate
+
+#### Backward elimination step 0
+
+```{r}
+vars <- c("sex",
+          "nation",
+          "cd4",
+          "fever",
+          "weight_loss",
+          "oi",
+          "patient_type",
+          "cxr",
+          "site")
+model0 <- df1 %>%
+  select(outcome01, hcode, vars) %>%
+  drop_na(any_of(c("outcome01", "hcode", vars))) %>%
+  geeglm(
+    formula = vars %>%
+      str_c(collapse = "+") %>%
+      str_c("outcome01 ~ ", .) %>%
+      as.formula(),
+    family = binomial,
+    data = .,
+    id = hcode,
+    corstr = "independence"
+  )
+summary(model0)
+wald.test(Sigma=vcov(model0),b=coef(model0),Terms=2)
+wald.test(Sigma=vcov(model0),b=coef(model0),Terms=3)
+wald.test(Sigma=vcov(model0),b=coef(model0),Terms=4:5)
+wald.test(Sigma=vcov(model0),b=coef(model0),Terms=6)
+wald.test(Sigma=vcov(model0),b=coef(model0),Terms=7)
+wald.test(Sigma=vcov(model0),b=coef(model0),Terms=8)
+wald.test(Sigma=vcov(model0),b=coef(model0),Terms=9)
+wald.test(Sigma=vcov(model0),b=coef(model0),Terms=10)
+wald.test(Sigma=vcov(model0),b=coef(model0),Terms=11)
+```
+
+#### Backward elimination step 1 - drop site
+
+```{r}
+vars <- c("sex",
+          "nation",
+          "cd4",
+          "fever",
+          "weight_loss",
+          "oi",
+          "patient_type",
+          "cxr")
+model1 <- df1 %>%
+  select(outcome01, hcode, vars) %>%
+  drop_na(any_of(c("outcome01", "hcode", vars))) %>%
+  geeglm(
+    formula = vars %>%
+      str_c(collapse = "+") %>%
+      str_c("outcome01 ~ ", .) %>%
+      as.formula(),
+    family = binomial,
+    data = .,
+    id = hcode,
+    corstr = "independence"
+  )
+summary(model1)
+wald.test(Sigma=vcov(model1),b=coef(model1),Terms=2)
+wald.test(Sigma=vcov(model1),b=coef(model1),Terms=3)
+wald.test(Sigma=vcov(model1),b=coef(model1),Terms=4:5)
+wald.test(Sigma=vcov(model1),b=coef(model1),Terms=6)
+wald.test(Sigma=vcov(model1),b=coef(model1),Terms=7)
+wald.test(Sigma=vcov(model1),b=coef(model1),Terms=8)
+wald.test(Sigma=vcov(model1),b=coef(model1),Terms=9)
+wald.test(Sigma=vcov(model1),b=coef(model1),Terms=10)
+```
+
+#### Backward elimination step 2 - drop fever
+
+```{r}
+vars <- c("sex",
+          "nation",
+          "cd4",
+          "weight_loss",
+          "oi",
+          "patient_type",
+          "cxr")
+model2 <- df1 %>%
+  select(outcome01, hcode, vars) %>%
+  drop_na(any_of(c("outcome01", "hcode", vars))) %>%
+  geeglm(
+    formula = vars %>%
+      str_c(collapse = "+") %>%
+      str_c("outcome01 ~ ", .) %>%
+      as.formula(),
+    family = binomial,
+    data = .,
+    id = hcode,
+    corstr = "independence"
+  )
+summary(model2)
+wald.test(Sigma=vcov(model2),b=coef(model2),Terms=2)
+wald.test(Sigma=vcov(model2),b=coef(model2),Terms=3)
+wald.test(Sigma=vcov(model2),b=coef(model2),Terms=4:5)
+wald.test(Sigma=vcov(model2),b=coef(model2),Terms=6)
+wald.test(Sigma=vcov(model2),b=coef(model2),Terms=7)
+wald.test(Sigma=vcov(model2),b=coef(model2),Terms=8)
+wald.test(Sigma=vcov(model2),b=coef(model2),Terms=9)
+```
+
+# Backward elimination step 3 - drop nation
+
+```{r}
+vars <- c("sex",
+          "cd4",
+          "weight_loss",
+          "oi",
+          "patient_type",
+          "cxr")
+model3 <- df1 %>%
+  select(outcome01, hcode, vars) %>%
+  drop_na(any_of(c("outcome01", "hcode", vars))) %>%
+  geeglm(
+    formula = vars %>%
+      str_c(collapse = "+") %>%
+      str_c("outcome01 ~ ", .) %>%
+      as.formula(),
+    family = binomial,
+    data = .,
+    id = hcode,
+    corstr = "independence"
+  )
+summary(model3)
+wald.test(Sigma=vcov(model3),b=coef(model3),Terms=2)
+wald.test(Sigma=vcov(model3),b=coef(model3),Terms=3:4)
+wald.test(Sigma=vcov(model3),b=coef(model3),Terms=5)
+wald.test(Sigma=vcov(model3),b=coef(model3),Terms=6)
+wald.test(Sigma=vcov(model3),b=coef(model3),Terms=7)
+wald.test(Sigma=vcov(model3),b=coef(model3),Terms=8)
+```
+
+-   Stepwise selection using `step()` cannot be used with gee model
+
+```{r}
+m1 <- step(model0, direction = "backward", trace = FALSE)
+```
+
+-   `tbl_regression` to produce nice table
+
+```{r}
+t_multi <- tbl_regression(model3, exponentiate = TRUE)
+t_multi
+```
+
+### Step 5 - Join univariate & multivariate tables
+
+```{r}
+tbl_merge(
+  list(t_uni, t_multi),
+  tab_spanner = c('Univariate', 'Multivariate')
+) %>% 
+  as_gt() %>% 
+  tab_style(
+        style = cell_text(weight = "bold"),
+        locations = cells_column_spanners()
+  )
+```
