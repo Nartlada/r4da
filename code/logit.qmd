@@ -1,0 +1,327 @@
+---
+title: "Logistic regression"
+format:
+  html:
+    toc: true
+editor: visual
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(
+  message = FALSE,
+  warning = FALSE,
+  cache = FALSE
+)
+```
+
+### Step 0 - Set up
+
+```{r packages}
+# Load packages
+pacman::p_load(
+  rio,              # import data
+  here,             # easy file referencing
+  tidyverse,        # set of core packages used in everyday data analyses
+  janitor,          # simplify variable names
+  labelled,         # variable label
+  broom,            # tidy model object
+  lmtest,           # compare models
+  gtsummary,        # creates presentation-ready tables summarizing data
+  gt                # customize gtsummary output
+)
+
+# Set theme for gtsummary output
+theme_gtsummary_compact()
+```
+
+### Step 1 - Import and explore data
+
+```{r importdata}
+# Import data
+df <- import(here('data', 'heart.csv'))
+
+# Explore
+skimr::skim(df)
+```
+
+### Step 2 - Prepare data for required output
+
+```{r preparedata}
+# Data management: join, filter, mutate, select, set labels
+df1 <- df %>%
+  clean_names() %>%
+  drop_na() %>% 
+  mutate(
+    across(c(male, current_smoker, bp_meds:diabetes), as.factor)
+  ) %>%
+  select(
+    gender = male,
+    age,
+    smoke = current_smoker,
+    cigs = cigs_per_day,
+    bpmeds = bp_meds,
+    stroke = prevalent_stroke,
+    hyper = prevalent_hyp,
+    diabetes,
+    chol = tot_chol,
+    sysbp = sys_bp,
+    diabp = dia_bp,
+    bmi,
+    hr = heart_rate,
+    glucose,
+    chd = ten_year_chd
+  ) %>% 
+  set_variable_labels(
+    gender   = 'Gender',
+    age      = 'Age',
+    smoke    = 'Current smoker',
+    cigs     = 'Cigarettes/day',
+    bpmeds   = 'Blood pressure medication',
+    stroke   = 'History of stroke',
+    hyper    = 'Hypertensive',
+    diabetes = 'Diabetes',
+    chol     = 'Cholesterol ',
+    sysbp    = 'Systolic',
+    diabp    = 'Diastolic',
+    bmi      = 'BMI',
+    hr       = 'Heart rate',
+    glucose  = 'Glucose',
+    chd      = '10 year risk of CHD'
+  )
+```
+
+#### Linear regression vs logistic regression
+
+::: columns
+::: column
+```{r}
+# Linear
+df1 %>% 
+  ggplot(aes(sysbp, diabp)) +
+  geom_point(alpha = 0.1) +
+  geom_smooth(
+    method = lm,
+    se = FALSE)
+```
+
+![](linear.png)
+:::
+
+::: column
+```{r}
+# Logistic
+df1 %>% 
+  ggplot(aes(sysbp, chd)) +
+  geom_point(alpha = 0.1) +
+  geom_smooth(
+    method = "glm", se = FALSE,
+    method.args = list(family = "binomial"))
+```
+
+![](sigmoid.gif)\
+<br> ![](logit.gif)
+:::
+:::
+
+#### Basic Logistic Regression Commands
+
+``` r
+object <- glm(formula = dv ~ iv1 + iv2 + iv3, family = "binomial", data = df)
+summary(object)  # results in logit coefficients
+```
+
+-   `formula =` The model is provided to [`glm()`](https://rdrr.io/r/stats/glm.html) as an equation, with the outcome on the left and explanatory variables on the right of a tilde `~`.
+
+-   `family =` This determines the type of model to run. For logistic regression, use `family = "binomial"`, for poisson use `family = "poisson"`. Other examples are in the table below.
+
+-   `data =` Specify your data frame
+
+### Step 3 - Univariate
+
+Use univariable analysis to explore the unadjusted association between variables and outcome. Each of the interested variables will be included in a logistic regression model, one for each time.
+
+```{r uni}
+# Using stat package in base R
+uni_gender <- glm(chd ~ gender, 'binomial', df1)
+summary(uni_gender)
+exp(cbind(OR = coef(uni_gender), confint(uni_gender)))
+tidy(uni_gender, exponentiate = TRUE, conf.int = TRUE)
+
+uni_age <- glm(chd ~ age, 'binomial', df1)
+summary(uni_age)
+tidy(uni_age, exponentiate = TRUE, conf.int = TRUE)
+
+# Using gtsummary::tbl_uvregression
+t_uni <- df1 %>% 
+  tbl_uvregression(                         # produce univariate table
+    method = glm,                           # generalised linear model
+    y = chd,                                # define outcome variable
+    method.args = list(family = binomial),  # arguments for glm
+    exponentiate = TRUE,                    # exponentiate to produce OR
+    hide_n = TRUE                           # hide N column
+  ) %>% 
+  add_global_p() %>%                        # show global p instead
+  bold_p(0.1)
+t_uni
+```
+
+### Step 4 - Multivariate
+
+Variables inclusion and selection
+
+-   A major problem when building a logistic model is to select which variables to include.
+
+-   We can start a regression using either a full (saturated) model, or a null (empty) model, which starts only with the intercept term.
+
+```{r}
+# full model
+fullmodel <- glm(
+  chd ~ gender + age + smoke + cigs + bpmeds + stroke + hyper + 
+        diabetes + chol + sysbp + diabp + bmi + hr + glucose,
+  family = "binomial",
+  data = df1
+)
+summary(fullmodel)
+
+# null model
+nullmodel <- glm(
+  chd ~ 1,
+  family = "binomial",
+  data = df1
+)
+summary(nullmodel)
+```
+
+-   The Akaike information criterion (AIC) is used to compare different possible models and determine which one is the best fit for the data. Lower AIC scores are better.
+
+-   The likelihood-ratio test compares the goodness of fit of two nested regression models based on their likelihood ratios.
+
+```{r}
+lrtest(fullmodel, nullmodel)
+```
+
+-   Backward elimination
+
+```{r}
+# Remove diabetes
+model1 <- glm(
+  chd ~ gender + age + smoke + cigs + bpmeds + stroke + hyper + 
+        chol + sysbp + diabp + bmi + hr + glucose,
+  family = "binomial",
+  data = df1
+)
+summary(model1)
+lrtest(fullmodel, model1) #perform likelihood ratio test for differences
+
+# Remove smoke
+model2 <- glm(
+  chd ~ gender + age + cigs + bpmeds + stroke + hyper + 
+        chol + sysbp + diabp + bmi + hr + glucose,
+  family = "binomial",
+  data = df1
+)
+summary(model2)
+lrtest(model1, model2)
+
+# Remove bmi
+model3 <- glm(
+  chd ~ gender + age + cigs + bpmeds + stroke + hyper + 
+        chol + sysbp + diabp + hr + glucose,
+  family = "binomial",
+  data = df1
+)
+summary(model3)
+lrtest(model2, model3)
+
+# Remove diabp
+model4 <- glm(
+  chd ~ gender + age + cigs + bpmeds + stroke + hyper + 
+        chol + sysbp + hr + glucose,
+  family = "binomial",
+  data = df1
+)
+summary(model4)
+lrtest(model3, model4)
+
+# Remove bpmeds
+model5 <- glm(
+  chd ~ gender + age + cigs + stroke + hyper + 
+        chol + sysbp + hr + glucose,
+  family = "binomial",
+  data = df1
+)
+summary(model5)
+lrtest(model4, model5)
+
+# Remove hr
+model6 <- glm(
+  chd ~ gender + age + cigs + stroke + hyper + 
+        chol + sysbp + glucose,
+  family = "binomial",
+  data = df1
+)
+summary(model6)
+lrtest(model5, model6)
+
+# Remove stroke
+model7 <- glm(
+  chd ~ gender + age + cigs + hyper + 
+        chol + sysbp + glucose,
+  family = "binomial",
+  data = df1
+)
+summary(model7)
+lrtest(model6, model7)
+
+# Remove hyper
+model8 <- glm(
+  chd ~ gender + age + cigs +
+        chol + sysbp + glucose,
+  family = "binomial",
+  data = df1
+)
+summary(model8)
+lrtest(model7, model8)
+```
+
+-   Stepwise selection using `step()`
+
+```{r}
+m1 <- step(fullmodel, direction = "backward", trace = FALSE)
+m2 <- step(nullmodel, direction = "forward", trace = FALSE,
+           scope = list(upper = fullmodel, lower = nullmodel))
+m3 <- step(nullmodel, direction="both", trace = FALSE,
+           scope = list(upper = fullmodel, lower = nullmodel))
+lrtest(m1, m2)
+lrtest(m1, m3)
+summary(m1)
+```
+
+-   `tbl_regression` to produce nice table
+
+```{r}
+t_multi <- tbl_regression(m1, exponentiate = TRUE)
+t_multi
+```
+
+### Step 5 - Join univariate & multivariate tables
+
+```{r}
+t_stat <- df1 %>%
+  mutate(chdfac = factor(chd,
+                         levels = c(1, 0),
+                         labels = c('Yes', 'No'))) %>%
+  tbl_summary(by = chdfac) %>%
+  add_overall() %>%
+  bold_labels() %>% 
+  modify_header(all_stat_cols() ~ "**{level}**<br>N = {n}")
+tbl_merge(
+  list(t_stat, t_uni, t_multi),
+  tab_spanner = c('Coronary Heart Disease', 'Univariate', 'Multivariate')
+) %>% 
+  as_gt() %>% 
+  tab_style(
+        style = cell_text(weight = "bold"),
+        locations = cells_column_spanners()
+  )
+```
