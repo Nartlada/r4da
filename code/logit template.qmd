@@ -168,6 +168,14 @@ fullmodel <-
 nullmodel <- 
 ```
 
+-   The Akaike information criterion (AIC) is used to compare different possible models and determine which one is the best fit for the data. Lower AIC scores are better.
+
+-   The likelihood-ratio test compares the goodness of fit of two nested regression models based on their likelihood ratios.
+
+```{r}
+
+```
+
 -   Backward elimination
 
 ```{r}
