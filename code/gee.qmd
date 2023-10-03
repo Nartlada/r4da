@@ -55,7 +55,7 @@ df1 <- df %>%
 ### Step 3 - Univariate
 
 ```{r uni}
-t_uni <- df1 %>% 
+t_uni <- df1 %>%
   tbl_uvregression(
       method = my_geeglm,
       y = outcome01,
@@ -68,7 +68,7 @@ t_uni <- df1 %>%
       exponentiate = TRUE
     ) %>%
   add_global_p() %>%
-  bold_p(0.25)
+  bold_p(0.2)
 t_uni
 ```
 
@@ -179,7 +179,7 @@ wald.test(Sigma=vcov(model2),b=coef(model2),Terms=8)
 wald.test(Sigma=vcov(model2),b=coef(model2),Terms=9)
 ```
 
-# Backward elimination step 3 - drop nation
+#### Backward elimination step 3 - drop nation
 
 ```{r}
 vars <- c("sex",
@@ -226,9 +226,12 @@ t_multi
 ### Step 5 - Join univariate & multivariate tables
 
 ```{r}
+
+t_sum <- df1 %>% 
+  tbl_summary(by = outcome)
 tbl_merge(
-  list(t_uni, t_multi),
-  tab_spanner = c('Univariate', 'Multivariate')
+  list(t_sum, t_uni, t_multi),
+  tab_spanner = c('Test result', 'Univariate', 'Multivariate')
 ) %>% 
   as_gt() %>% 
   tab_style(
